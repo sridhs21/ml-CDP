@@ -1,54 +1,40 @@
-import tensorflow as tf
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
-from tensorflow.keras.models import Model
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import models, transforms
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
+from tqdm import tqdm
 
-train_datagen = ImageDataGenerator(
-    rescale=1./255,
-    rotation_range=20,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.2
-)
+#the data preprocessing and augmentation
+data_transforms = {
+    'train': transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+    'val' : transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ]),
+}
 
-train_generator = train_datagen.flow_from_directory(
-    'plantvillage_dataset/color',
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='training'
-)
+#load datasets
+data_dir = 'data'
+full_dataset = ImageFolder(data_dir, transform=data_transforms['train'])
 
-validation_generator = train_datagen.flow_from_directory(
-    'plantvillage_dataset/color',
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='validation'
-)
+train_size = int(0.8 * len(full_dataset))
+val_size = len(full_dataset) - train_size
+train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-base_model = MobileNetV2(weights='imagenet', include_top=False)
-base_model.trainable = False
+val_dataset.dataset.transform = data_transforms['val']
 
-x = base_model.output
-x = GlobalAveragePooling2D()(x)
-x = Dense(1024, activation='relu')(x)
-output = Dense(train_generator.num_classes, activation='softmax')(x)
-model = Model(inputs=base_model.input, outputs=output)
 
-model.compile(optimizer='adam',
-              loss='categorical_crossentropy',
-              metrics=['accuracy'])
-
-history = model.fit(
-    train_generator,
-    steps_per_epoch=train_generator.samples // train_generator.batch_size,
-    validation_data=validation_generator,
-    validation_steps=validation_generator.samples // validation_generator.batch_size,
-    epochs=10
-)
-
-model.save('crop_disease_model.h5')
-print("Model training completed and saved.")
+#set up device
+#load pre-trained model
+#modify classifier
+#loss function and optimizer
+#training the model/training function
